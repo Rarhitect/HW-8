@@ -70,7 +70,7 @@ int main(int argc, const char * argv[])
             break;
         }
         new_index += positions;
-        indexes.push_back(new_index + 1 + 2*iterration_number);
+        indexes.push_back(new_index + 1 + user_search.size() * iterration_number);
         std::advance(it, (positions + user_search.size()));
         dna_copy = dna_copy.substr(positions + user_search.size());
         ++iterration_number;
