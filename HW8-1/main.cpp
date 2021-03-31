@@ -29,9 +29,8 @@ void thread_func_for_pi(int number_of_points, int & counter_included, double sta
     }
     
     std::mutex mutex;
-    mutex.lock();
+    std::lock_guard< std::mutex > lock(mutex);
     counter_included += counter;
-    mutex.unlock();
 }
 
 double parallel_pi(int number_of_points)
