@@ -10,6 +10,10 @@
 #include <thread>
 #include <random>
 #include <vector>
+#include <iterator>
+#include <mutex>
+
+std::mutex global_mutex;
 
 std::string random_dna(int quantity)
 {
@@ -42,6 +46,66 @@ std::string random_dna(int quantity)
     return dna;
 }
 
+void search_block(std::vector< std::size_t > & indexes, std::string dna, std::string user_search, std::string::iterator left_edge, std::string::iterator right_edge)
+{
+    global_mutex.lock();
+    
+    std::string dna_copy = dna;
+    std::size_t new_index = 0;
+    
+    std::string::iterator it = left_edge;
+    while(it <= right_edge)
+    {
+        static int iterration_number = 0;
+    
+        std::size_t positions = dna_copy.find(user_search);
+
+        if (positions == std::string::npos)
+        {
+            break;
+        }
+
+        new_index += positions;
+        indexes.push_back(new_index + 1 + user_search.size() * iterration_number);
+    
+        std::advance(it, (positions + user_search.size()));
+        dna_copy = dna_copy.substr(positions + user_search.size());
+    
+        ++iterration_number;
+    }
+    
+    global_mutex.unlock();
+}
+
+std::vector< std::size_t > searched_indexes(std::vector< std::size_t > & indexes, std::string dna, std::string user_search)
+{
+    const std::size_t hardware_threads = std::thread::hardware_concurrency();
+    unsigned long block_size = dna.size() / hardware_threads;
+    unsigned long retained_block_size = dna.size() % hardware_threads;
+    
+    std::vector<std::thread> threads(hardware_threads);
+    
+    std::string::iterator left_edge = dna.begin();
+    std::string::iterator right_edge = left_edge + block_size;
+    
+    for (size_t i = 0; i < threads.size(); i++)
+    {
+        threads[i] = std::thread(search_block, std::ref(indexes), dna, user_search, left_edge, right_edge);
+        
+        std::advance(left_edge, block_size);
+        std::advance(right_edge, block_size);
+    }
+
+    if (retained_block_size != 0)
+    {
+        threads.push_back(std::thread(search_block, std::ref(indexes), dna, user_search, left_edge, left_edge + retained_block_size));
+    }
+    
+    std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
+    
+    return indexes;
+}
+
 int main(int argc, const char * argv[])
 {
     std::cout << "Enter the quantity of DNA elements: ";
@@ -54,27 +118,9 @@ int main(int argc, const char * argv[])
     std::cout << "Insert the part you searching: ";
     std::cin >> user_search;
     
-    std::string dna_copy = dna;
     std::vector< std::size_t > indexes;
-
-    std::size_t new_index = 0;
-  
-    std::string::iterator it = dna.begin();
-    while(it <= dna.end())
-    {
-        static int iterration_number = 0;
-        std::size_t positions = dna_copy.find(user_search);
-
-        if (positions == std::string::npos)
-        {
-            break;
-        }
-        new_index += positions;
-        indexes.push_back(new_index + 1 + user_search.size() * iterration_number);
-        std::advance(it, (positions + user_search.size()));
-        dna_copy = dna_copy.substr(positions + user_search.size());
-        ++iterration_number;
-    }
+    
+    indexes = searched_indexes(indexes, dna, user_search);
     
     if(indexes.empty())
     {
@@ -83,9 +129,10 @@ int main(int argc, const char * argv[])
     }
     else
     {
-        for(auto & element: indexes)
+        std::cout << "Searched elements have positions:" << std::endl;
+        for(auto i = 0; i < indexes.size(); ++i)
         {
-            std::cout << element << " ";
+            std::cout << "Substring №" << i + 1 << ": " << indexes[i] << std::endl;
         }
     }
     
@@ -93,3 +140,30 @@ int main(int argc, const char * argv[])
     
     return 0;
 }
+
+
+//ПОСЛЕДОВАТЕЛЬНАЯ РЕАЛИЗАЦИЯ:
+
+//    std::string dna_copy = dna;
+//    std::size_t new_index = 0;
+//
+//    std::string::iterator it = dna.begin();
+//    while(it <= dna.end())
+//    {
+//        static int iterration_number = 0;
+//
+//        std::size_t positions = dna_copy.find(user_search);
+//
+//        if (positions == std::string::npos)
+//        {
+//            break;
+//        }
+//
+//        new_index += positions;
+//        indexes.push_back(new_index + 1 + user_search.size() * iterration_number);
+//
+//        std::advance(it, (positions + user_search.size()));
+//        dna_copy = dna_copy.substr(positions + user_search.size());
+//
+//        ++iterration_number;
+//    }
