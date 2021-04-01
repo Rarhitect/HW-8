@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <queue>
 #include <chrono>
+#include <thread>
 
 #include <boost/lockfree/stack.hpp>
 #include <boost/lockfree/queue.hpp>
@@ -172,6 +173,57 @@ private:
 };
 
 template <typename T>
+void threadsafe_stack_manufacturer(Threadsafe_Stack<T> & object, const std::size_t M);
+
+template <typename T>
+void threadsafe_stack_consumerist(Threadsafe_Stack<T> & object, const std::size_t M);
+
+template <typename T>
+void boost_stack_manufacturer(boost::lockfree::stack<T> & object, const std::size_t M);
+
+template <typename T>
+void boost_stack_consumerist(boost::lockfree::stack<T> & object, const std::size_t M);
+
+template <typename T>
+void threadsafe_queue_manufacturer(Threadsafe_Queue<T> & object, const std::size_t M);
+
+template <typename T>
+void threadsafe_queue_consumerist(Threadsafe_Queue<T> & object, const std::size_t M);
+
+template <typename T>
+void boost_queue_manufacturer(boost::lockfree::queue<T> & object, const std::size_t M);
+
+template <typename T>
+void boost_queue_consumerist(boost::lockfree::queue<T> & object, const std::size_t M);
+
+template <typename T>
+void time_of_work(Threadsafe_Stack<T> & ts_stack, boost::lockfree::stack<T> & boost_stack, Threadsafe_Queue<T> & ts_queue, boost::lockfree::queue<T> & boost_queue, const std::size_t N, const std::size_t M);
+
+//=========================================================================================================
+
+int main(int argc, const char * argv[])
+{
+    Threadsafe_Stack< int > ts_stack;
+    Threadsafe_Queue< int > ts_queue;
+    
+    boost::lockfree::stack< int > boost_stack(1);
+    boost::lockfree::queue< int > boost_queue(1);
+    
+    std::size_t N;
+    std::size_t M;
+    
+    std::cout << "Hello, enter the quantity of threads (N) and then quantity of elements (M):" << std::endl;
+    std::cin >> N;
+    std::cin >> M;
+    
+    time_of_work(ts_stack, boost_stack, ts_queue, boost_queue, N, M);
+    
+    return 0;
+}
+
+//=========================================================================================================
+
+template <typename T>
 void threadsafe_stack_manufacturer(Threadsafe_Stack<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
@@ -181,7 +233,7 @@ void threadsafe_stack_manufacturer(Threadsafe_Stack<T> & object, const std::size
 }
 
 template <typename T>
-void threadsafe_stack_consumerist(Threadsafe_Stack <T> & object, const std::size_t M)
+void threadsafe_stack_consumerist(Threadsafe_Stack<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
     {
@@ -190,7 +242,7 @@ void threadsafe_stack_consumerist(Threadsafe_Stack <T> & object, const std::size
 }
 
 template <typename T>
-void boost_stack_manufacturer(boost::lockfree::stack <T> & object, const std::size_t M)
+void boost_stack_manufacturer(boost::lockfree::stack<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
     {
@@ -199,7 +251,7 @@ void boost_stack_manufacturer(boost::lockfree::stack <T> & object, const std::si
 }
 
 template <typename T>
-void boost_stack_consumerist(boost::lockfree::stack <T> & object, const std::size_t M)
+void boost_stack_consumerist(boost::lockfree::stack<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
     {
@@ -208,7 +260,7 @@ void boost_stack_consumerist(boost::lockfree::stack <T> & object, const std::siz
 }
 
 template <typename T>
-void threadsafe_queue_manufacturer(Threadsafe_Queue <T> & object, const std::size_t M)
+void threadsafe_queue_manufacturer(Threadsafe_Queue<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
     {
@@ -217,7 +269,7 @@ void threadsafe_queue_manufacturer(Threadsafe_Queue <T> & object, const std::siz
 }
 
 template <typename T>
-void threadsafe_queue_consumerist(Threadsafe_Queue <T> & object, const std::size_t M)
+void threadsafe_queue_consumerist(Threadsafe_Queue<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
     {
@@ -226,7 +278,7 @@ void threadsafe_queue_consumerist(Threadsafe_Queue <T> & object, const std::size
 }
 
 template <typename T>
-void boost_queue_manufacturer(boost::lockfree::queue <T> & object, const std::size_t M)
+void boost_queue_manufacturer(boost::lockfree::queue<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
     {
@@ -235,7 +287,7 @@ void boost_queue_manufacturer(boost::lockfree::queue <T> & object, const std::si
 }
 
 template <typename T>
-void boost_queue_consumerist(boost::lockfree::queue <T> & object, const std::size_t M)
+void boost_queue_consumerist(boost::lockfree::queue<T> & object, const std::size_t M)
 {
     for (int i = 0; i < M; i++)
     {
@@ -243,9 +295,74 @@ void boost_queue_consumerist(boost::lockfree::queue <T> & object, const std::siz
     }
 }
 
-int main(int argc, const char * argv[])
+template <typename T>
+void time_of_work(Threadsafe_Stack<T> & ts_stack, boost::lockfree::stack<T> & boost_stack, Threadsafe_Queue<T> & ts_queue, boost::lockfree::queue<T> & boost_queue, const std::size_t N, const std::size_t M)
 {
+    std::vector < std::thread > ts_stack_threads(2 * N);
     
+    for(auto i = 0; i < N; ++i)
+    {
+        ts_stack_threads[i] = std::thread(threadsafe_stack_manufacturer<T>, std::ref(ts_stack), M);
+    }
+    for(auto i = N; i < 2 * N; ++i)
+    {
+        ts_stack_threads[i] = std::thread(threadsafe_stack_consumerist<T>, std::ref(ts_stack), M);
+    }
     
-    return 0;
+    auto begin_1 = std::chrono::system_clock::now();
+    std::for_each(ts_stack_threads.begin(), ts_stack_threads.end(), std::mem_fn(&std::thread::join));
+    auto end_1 = std::chrono::system_clock::now();
+    auto elapsed_1 = std::chrono::duration_cast<std::chrono::nanoseconds>(end_1 - begin_1);
+    std::cout << "Threadsafe stack: " << elapsed_1.count() << " ns" << std::endl;
+    
+    std::vector < std::thread > boost_stack_threads(2 * N);
+    
+    for(auto i = 0; i < N; ++i)
+    {
+        boost_stack_threads[i] = std::thread(boost_stack_manufacturer<T>, std::ref(boost_stack), M);
+    }
+    for(auto i = N; i < 2 * N; ++i)
+    {
+        boost_stack_threads[i] = std::thread(boost_stack_consumerist<T>, std::ref(boost_stack), M);
+    }
+    
+    auto begin_2 = std::chrono::system_clock::now();
+    std::for_each(boost_stack_threads.begin(), boost_stack_threads.end(), std::mem_fn(&std::thread::join));
+    auto end_2 = std::chrono::system_clock::now();
+    auto elapsed_2 = std::chrono::duration_cast<std::chrono::nanoseconds>(end_2 - begin_2);
+    std::cout << "Boost lockfree stack: " << elapsed_2.count() << " ns" << std::endl;
+    
+    std::vector < std::thread > ts_queue_threads(2 * N);
+    
+    for(auto i = 0; i < N; ++i)
+    {
+        ts_queue_threads[i] = std::thread(threadsafe_queue_manufacturer<T>, std::ref(ts_queue), M);
+    }
+    for(auto i = N; i < 2 * N; ++i)
+    {
+        ts_queue_threads[i] = std::thread(threadsafe_queue_consumerist<T>, std::ref(ts_queue), M);
+    }
+    
+    auto begin_3 = std::chrono::system_clock::now();
+    std::for_each(ts_queue_threads.begin(), ts_queue_threads.end(), std::mem_fn(&std::thread::join));
+    auto end_3 = std::chrono::system_clock::now();
+    auto elapsed_3 = std::chrono::duration_cast<std::chrono::nanoseconds>(end_3 - begin_3);
+    std::cout << "Threadsafe queue: " << elapsed_3.count() << " ns" << std::endl;
+    
+    std::vector < std::thread > boost_queue_threads(2 * N);
+    
+    for(auto i = 0; i < N; ++i)
+    {
+        boost_queue_threads[i] = std::thread(boost_queue_manufacturer<T>, std::ref(boost_queue), M);
+    }
+    for(auto i = N; i < 2 * N; ++i)
+    {
+        boost_queue_threads[i] = std::thread(boost_queue_consumerist<T>, std::ref(boost_queue), M);
+    }
+    
+    auto begin_4 = std::chrono::system_clock::now();
+    std::for_each(boost_queue_threads.begin(), boost_queue_threads.end(), std::mem_fn(&std::thread::join));
+    auto end_4 = std::chrono::system_clock::now();
+    auto elapsed_4 = std::chrono::duration_cast<std::chrono::nanoseconds>(end_4 - begin_4);
+    std::cout << "Boost lockfree queue: " << elapsed_4.count() << " ns" << std::endl;
 }
