@@ -12,6 +12,7 @@
 #include <stack>
 #include <stdexcept>
 #include <queue>
+#include <chrono>
 
 #include <boost/lockfree/stack.hpp>
 #include <boost/lockfree/queue.hpp>
@@ -169,6 +170,78 @@ private:
     std::condition_variable m_condition_variable;
     mutable std::mutex m_mutex;
 };
+
+template <typename T>
+void threadsafe_stack_manufacturer(Threadsafe_Stack<T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.push(i);
+    }
+}
+
+template <typename T>
+void threadsafe_stack_consumerist(Threadsafe_Stack <T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.pop(i);
+    }
+}
+
+template <typename T>
+void boost_stack_manufacturer(boost::lockfree::stack <T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.push(i);
+    }
+}
+
+template <typename T>
+void boost_stack_consumerist(boost::lockfree::stack <T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.pop(i);
+    }
+}
+
+template <typename T>
+void threadsafe_queue_manufacturer(Threadsafe_Queue <T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.push(i);
+    }
+}
+
+template <typename T>
+void threadsafe_queue_consumerist(Threadsafe_Queue <T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.try_pop(i);
+    }
+}
+
+template <typename T>
+void boost_queue_manufacturer(boost::lockfree::queue <T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.push(i);
+    }
+}
+
+template <typename T>
+void boost_queue_consumerist(boost::lockfree::queue <T> & object, const std::size_t M)
+{
+    for (int i = 0; i < M; i++)
+    {
+        object.pop(i);
+    }
+}
 
 int main(int argc, const char * argv[])
 {
