@@ -46,32 +46,28 @@ std::string random_dna(int quantity)
     return dna;
 }
 
-void search_block(std::vector< std::size_t > & indexes, std::string dna, std::string user_search, std::string::iterator left_edge, std::string::iterator right_edge)
+void search_block(std::vector< std::size_t > & indexes, std::string dna, std::string user_search, std::size_t left_edge, std::size_t right_edge)
 {
     global_mutex.lock();
     
-    std::string dna_copy = dna;
-    std::size_t new_index = 0;
+    int length_of_coincidence = 0;
     
-    std::string::iterator it = left_edge;
-    while(it <= right_edge)
+    for (auto i = left_edge; i < right_edge; ++i)
     {
-        static int iterration_number = 0;
-    
-        std::size_t positions = dna_copy.find(user_search);
-
-        if (positions == std::string::npos)
+        for (auto j = 0; j < user_search.size(); ++j)
         {
-            break;
+            if (i + j < dna.size())
+            {
+                (dna[i + j] == user_search[j]) ? length_of_coincidence++ : length_of_coincidence += 0;
+            }
         }
-
-        new_index += positions;
-        indexes.push_back(new_index + 1 + user_search.size() * iterration_number);
-    
-        std::advance(it, (positions + user_search.size()));
-        dna_copy = dna_copy.substr(positions + user_search.size());
-    
-        ++iterration_number;
+        
+        if (length_of_coincidence == user_search.size())
+        {
+            indexes.push_back(i + 1);
+        }
+        
+        length_of_coincidence = 0;
     }
     
     global_mutex.unlock();
@@ -85,15 +81,15 @@ std::vector< std::size_t > searched_indexes(std::vector< std::size_t > & indexes
     
     std::vector<std::thread> threads(hardware_threads);
     
-    std::string::iterator left_edge = dna.begin();
-    std::string::iterator right_edge = left_edge + block_size;
+    std::size_t left_edge = 0;
+    std::size_t right_edge = block_size;
     
     for (size_t i = 0; i < threads.size(); i++)
     {
         threads[i] = std::thread(search_block, std::ref(indexes), dna, user_search, left_edge, right_edge);
         
-        std::advance(left_edge, block_size);
-        std::advance(right_edge, block_size);
+        left_edge += block_size;
+        right_edge += block_size;
     }
 
     if (retained_block_size != 0)
@@ -129,6 +125,7 @@ int main(int argc, const char * argv[])
     }
     else
     {
+        std::sort(indexes.begin(), indexes.end());
         std::cout << "Searched elements have positions:" << std::endl;
         for(auto i = 0; i < indexes.size(); ++i)
         {
@@ -142,7 +139,7 @@ int main(int argc, const char * argv[])
 }
 
 
-//ПОСЛЕДОВАТЕЛЬНАЯ РЕАЛИЗАЦИЯ:
+//ПОСЛЕДОВАТЕЛЬНАЯ РЕАЛИЗАЦИЯ: (мне жалко её выбрасывать)
 
 //    std::string dna_copy = dna;
 //    std::size_t new_index = 0;
