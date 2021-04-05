@@ -75,7 +75,8 @@ void search_block(std::vector< std::size_t > & indexes, std::string dna, std::st
 
 std::vector< std::size_t > searched_indexes(std::vector< std::size_t > & indexes, std::string dna, std::string user_search)
 {
-    const std::size_t hardware_threads = std::thread::hardware_concurrency();
+    const std::size_t number_of_cores = std::thread::hardware_concurrency();
+    std::size_t hardware_threads = (number_of_cores != 0) ? number_of_cores : 8;
     unsigned long block_size = dna.size() / hardware_threads;
     unsigned long retained_block_size = dna.size() % hardware_threads;
     
