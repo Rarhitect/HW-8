@@ -10,12 +10,12 @@
 #include <random>
 #include <mutex>
 
-void thread_func_for_pi(int number_of_points, int & counter_included, double start_of_xrange)
+void thread_func_for_pi(int number_of_points, int & counter_included, double start_of_xrange, double end_of_xrange)
 {
     std::random_device rd;
     std::mt19937 mersenne(rd());
     std::uniform_real_distribution<double> uni_of_y(0.0, 1.0);
-    std::uniform_real_distribution<double> uni_of_x(start_of_xrange, start_of_xrange + 0.25);
+    std::uniform_real_distribution<double> uni_of_x(start_of_xrange, end_of_xrange);
     
     int counter = 0; //счетчик попавших в окружность точек
     
@@ -38,17 +38,20 @@ double parallel_pi(int number_of_points)
     double pi;
     
     int counter = 0;
-    std::thread thread_1(thread_func_for_pi, number_of_points, std::ref(counter), 0.0);
-    std::thread thread_2(thread_func_for_pi, number_of_points, std::ref(counter), 0.25);
-    std::thread thread_3(thread_func_for_pi, number_of_points, std::ref(counter), 0.5);
-    std::thread thread_4(thread_func_for_pi, number_of_points, std::ref(counter), 0.75);
     
-    thread_1.join();
-    thread_2.join();
-    thread_3.join();
-    thread_4.join();
+    const std::size_t number_of_cores = std::thread::hardware_concurrency();
+    std::size_t hardware_threads = (number_of_cores != 0) ? number_of_cores : 8;
     
-    pi = static_cast<double>(counter) / static_cast<double>(number_of_points);
+    std::vector<std::thread> threads(hardware_threads);
+    
+    for(auto i = 0; i < threads.size(); ++i)
+    {
+        threads[i] = std::thread(thread_func_for_pi, number_of_points, std::ref(counter), static_cast<double>(i) / hardware_threads, static_cast<double>(i + 1) / hardware_threads);
+    }
+    
+    std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
+    
+    pi = static_cast<double>(counter) / (2 * static_cast<double>(number_of_points));
     
     return pi;
 }
